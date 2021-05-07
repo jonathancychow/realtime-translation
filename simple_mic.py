@@ -9,23 +9,34 @@ from amazon_transcribe.client import TranscribeStreamingClient
 from amazon_transcribe.handlers import TranscriptResultStreamHandler
 from amazon_transcribe.model import TranscriptEvent
 
+import boto3
 
 """
 Here's an example of a custom event handler you can extend to
 process the returned transcription results as needed. This
 handler will simply print the text out to your interpreter.
 """
+async def text_translate(text):
+    translate = boto3.client(service_name='translate', region_name='eu-west-2', use_ssl=True)
+
+    result = translate.translate_text(
+        Text = text, 
+        SourceLanguageCode = "en", 
+        TargetLanguageCode = "zh-TW")
+
+    print('Translation: ' + result.get('TranslatedText'))
+
 class MyEventHandler(TranscriptResultStreamHandler):
     async def handle_transcript_event(self, transcript_event: TranscriptEvent):
         # This handler can be implemented to handle transcriptions as needed.
         # Here's an example to get started.
         results = transcript_event.transcript.results
+
         for result in results:
             for alt in result.alternatives:
                 if result.is_partial == False: 
-                    print(alt.transcript)
-
-                # print(result.is_partial)
+                    print("Original: " + alt.transcript)
+                    await text_translate(alt.transcript)
 
 
 async def mic_stream():
