@@ -3,26 +3,51 @@ import asyncio
 # microphone. It's not a dependency of the project but can be installed with
 # `pip install sounddevice`.
 import sounddevice
-
-
 from amazon_transcribe.client import TranscribeStreamingClient
 from amazon_transcribe.handlers import TranscriptResultStreamHandler
 from amazon_transcribe.model import TranscriptEvent
-
 import boto3
+from dotenv import load_dotenv
+import os
 
 """
 Here's an example of a custom event handler you can extend to
 process the returned transcription results as needed. This
 handler will simply print the text out to your interpreter.
 """
+
+# Full list for AWS transcribe
+# https://docs.aws.amazon.com/transcribe/latest/dg/what-is-transcribe.html
+# Full list for AWS translate
+# https://docs.aws.amazon.com/translate/latest/dg/what-is.html#what-is-languages
+
+
+def set_config():
+    
+    #loads the .env file with our credentials
+    load_dotenv() 
+
+    SourceLanguage = os.getenv('SOURCE_LAN')
+    TargetLanguage = os.getenv('TARGET_LAN')
+
+    transcribe_source_lan = "en" if "en" in SourceLanguage else SourceLanguage
+
+    config = {
+        "transcribe":{"language_code":SourceLanguage},
+        "translate":{
+            "SourceLanguageCode" : transcribe_source_lan,
+            "TargetLanguageCode" : TargetLanguage
+            }
+        }
+    return config
+
 async def text_translate(text):
     translate = boto3.client(service_name='translate', region_name='eu-west-2', use_ssl=True)
 
     result = translate.translate_text(
         Text = text, 
-        SourceLanguageCode = "en", 
-        TargetLanguageCode = "zh-TW")
+        SourceLanguageCode = set_config()["translate"]["SourceLanguageCode"], 
+        TargetLanguageCode = set_config()["translate"]["TargetLanguageCode"])
 
     print('Translation: ' + result.get('TranslatedText'))
 
@@ -80,9 +105,9 @@ async def basic_transcribe():
 
     # Start transcription to generate our async stream
     stream = await client.start_stream_transcription(
-        language_code="en-GB",
-        media_sample_rate_hz=16000,
-        media_encoding="pcm",
+        language_code = set_config()["transcribe"]["language_code"],
+        media_sample_rate_hz = 16000,
+        media_encoding = "pcm",
     )
 
     # Instantiate our handler and start processing events
